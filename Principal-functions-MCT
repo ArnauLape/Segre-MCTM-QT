@@ -1,0 +1,101 @@
+from Principal-functions-libraries import *
+
+# una manera de modelar la distribucio de probabilitat
+def kde_sklearn(x, x_grid, bandwidth, kernel='gaussian', **kwargs):
+    """Kernel Density Estimation with Scikit-learn"""
+    kde_skl = KernelDensity(kernel=kernel, bandwidth=bandwidth, **kwargs)
+    kde_skl.fit(x[:, np.newaxis])
+    # score_samples() returns the log-likelihood of the samples
+    log_pdf = kde_skl.score_samples(x_grid[:, np.newaxis])
+    return np.exp(log_pdf)
+
+
+
+def kde2D(x, y, bandwidth, xbins=100j, ybins=100j, **kwargs): 
+    """Build 2D kernel density estimate (KDE)."""
+
+    # create grid of sample locations (default: 100x100)
+    xx, yy = np.mgrid[x.min():x.max():xbins, 
+                      y.min():y.max():ybins]
+
+    xy_sample = np.vstack([yy.ravel(), xx.ravel()]).T
+    xy_train  = np.vstack([y, x]).T
+
+    kde_skl = KernelDensity(bandwidth=bandwidth, **kwargs)
+    kde_skl.fit(xy_train)
+
+    # score_samples() returns the log-likelihood of the samples
+    z = np.exp(kde_skl.score_samples(xy_sample))
+    return xx, yy, np.reshape(z, xx.shape)
+
+
+# important si utilitzem kde_sklearn
+values_bandwidth = np.array([
+    [[0.12,1,0.12],[1,0.12,0.12],[1,0.12,0.12],[0.12,1,0.12]], #[1,0,0,1] entrellaçat
+    [[1,0.12,0.12],[0.12,1,0.12],[0.12,1,0.12],[1,0.12,0.12]], #[0,1,1,0] entrellaçat
+    [[0.12,0.12,0.12],[0.12,1,0.12],[0.12,1,0.12],[1,0.12,0.12]], #[0,1,1,0] entrellaçat
+    [[0.12,1,0.12],[1,0.8,0.12],[1,0.8,0.12],[0.12,1,0.12]] #molt prop de product
+])
+
+
+# funcio que ens calcula una matriu unitaria a partir de tres parametres beta,
+# gamma i theta
+def transformacio_unitaria_general (x):
+  A = np.array([
+      [np.exp(1j*x[0])*np.cos(x[2]), np.exp(1j*x[1])*np.sin(x[2])],
+      [-np.exp(-1j*x[1])*np.sin(x[2]), np.exp(-1j*x[0])*np.cos(x[2])]
+      ])
+
+  return A
+
+
+# calculem les fidelitats F_i(C) que conformen el producte F_i
+def calc_fidelitat_bayesian(x, AB, C, n, m, Estat_Bell_bra):
+
+  CAB = preparacio_sistema(AB,C,n,m)
+  tele = np.transpose(np.dot(Estat_Bell_bra, CAB))
+  norma_tele = np.linalg.norm(np.transpose(tele)[0])
+
+  # Mirar ANOTACIONS TFG punt (3)
+  if norma_tele == 0:
+    F = 1
+  else:
+    tele = np.divide(tele, norma_tele)
+
+    M = transformacio_unitaria_general(x)
+    F = np.dot(np.transpose(np.conjugate(np.dot(M,tele))),C)[0][0]
+    F *= F.conjugate()
+
+  return F.real
+
+
+# funcio que utilitzarem per a Metroplis - Hastings
+def funcio_base_log(x, AB, n, estats_C, Estat_Bell_bra):
+  F_conjunta = 1
+  for C,m in estats_C:
+    F = calc_fidelitat_bayesian(x,AB,C,n,m,Estat_Bell_bra)
+    F_conjunta *= F
+
+  return -np.log(F_conjunta)
+
+
+def matriu_covariancia_general (a):
+  sigma = np.array([
+    [a,0,0],
+    [0,a,0],
+    [0,0,a]
+  ])
+
+  return sigma
+
+
+def calcul_bandwidth (x, min_bandwidth = 0.05, max_bandwidth = 1.0, casos = 20, cv=5):
+  data = x[:, np.newaxis]
+  bandwidths = np.linspace(min_bandwidth, max_bandwidth, casos)
+  grid = GridSearchCV(KernelDensity(), {'bandwidth': bandwidths}, cv=cv)  # 5-fold cross-validation
+  grid.fit(data)
+
+  # Bandwidth òptim
+  return grid.best_params_['bandwidth']
+
+
