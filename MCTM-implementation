@@ -1,1 +1,82 @@
+from MCTM-algorithm import *
 
+
+#############################################################
+SINGLE STATE
+#############################################################
+# # Creem els fitxers on guardarem les dades
+# if not os.path.exists(f'Bell{index_Bell}/cadenes'):
+#   os.makedirs(f'Bell{index_Bell}/cadenes')
+# if not os.path.exists(f'Bell{index_Bell}/f_values'):
+#   os.makedirs(f'Bell{index_Bell}/f_values')
+# if not os.path.exists(f'Bell{index_Bell}/ritmes'):
+#   os.makedirs(f'Bell{index_Bell}/ritmes')
+#############################################################
+
+#############################################################
+STATE DEPENDING ON AN ANGLE
+#############################################################
+# Creem els fitxers on guardarem les dades (angles)
+ruta = f'Bell{index_Bell}/Angles/{N}-{a}-{T}$${num_estats_C}/'
+
+inici_Bell = 0
+final_Bell = 1
+ruta = f'Bell{inici_Bell}--Bell{final_Bell}/Angles/{N}-{a}-{T}$${num_estats_C}/'
+
+if not os.path.exists(ruta + 'cadenes'):
+  os.makedirs(ruta + 'cadenes')
+if not os.path.exists(ruta + 'f_values'):
+  os.makedirs(ruta + 'f_values')
+if not os.path.exists(ruta + 'ritmes'):
+  os.makedirs(ruta + 'ritmes')
+##############################################################
+
+print(N)
+print(a)
+print(T)
+print(num_estats_C)
+
+# calculem la matriu covariància de la densitat de transició proposada
+cov = matriu_covariancia_MCTM (a,num_trials)
+
+
+angle_inici = np.pi/9               
+angle_final = 8*np.pi/9           
+n_angles = 8        
+angles = np.linspace(angle_inici, angle_final, n_angles)
+
+AB = [np.cos(angle),0,0,np.sin(angle)]
+AB,n = preparacio_estat(AB)
+
+
+# Inicialitzar resultats
+cadenes_MCTM = [None] * 4
+f_values_MCTM = [None] * 4
+ritmes_MCTM = [None] * 4
+
+if __name__ == "__main__":
+  
+  # Crear un ProcessPoolExecutor
+  with ProcessPoolExecutor(max_workers=4) as executor:
+    solucions = [executor.submit(calcul_MCTM, i, N, cov, T, num_trials, AB, n, estats_C, Estats_Bell_bra) for i in range(4)]
+    
+    # Processar resultats a mesura que es completen
+    for solucio in as_completed(solucions):
+      try:
+        Markov_chain, Markov_chain_f_values, acceptacions, i = solucio.result()
+        print(i,acceptacions)
+        cadenes_MCTM[i] = Markov_chain
+        f_values_MCTM[i] = Markov_chain_f_values
+        ritmes_MCTM[i] = acceptacions
+      except Exception as e:
+          print(f"Error in process: {e}")
+
+
+angle = math.floor(angle * 1000) / 1000
+np.save(ruta + f'cadenes/{angle:.3f}.npy', cadenes_MCTM)
+np.save(ruta + f'f_values/{angle:.3f}.npy', f_values_MCTM)
+np.save(ruta + f'ritmes/{angle:.3f}.npy', ritmes_MCTM)
+
+# np.save(f'Bell{index_Bell}/cadenes/{N}-{a}-{T}$${num_estats_C}.npy', cadenes_MCTM)
+# np.save(f'Bell{index_Bell}/f_values/{N}-{a}-{T}$${num_estats_C}.npy', f_values_MCTM)
+# np.save(f'Bell{index_Bell}/ritmes/{N}-{a}-{T}$${num_estats_C}.npy', ritmes_MCTM)
