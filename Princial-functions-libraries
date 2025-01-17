@@ -72,8 +72,9 @@ def quantum_teleportation_ponderada (AB, C, n, m, instruccions):
 
 
 
-
-#definim les matrius de Pauli 2x2
+####################################
+# definim les matrius de Pauli 2x2 #
+####################################
 Matrius_pauli = np.array([
     np.array([
         [1+0j,0+0j],
@@ -93,7 +94,9 @@ Matrius_pauli = np.array([
                ])]
     )
 
-#definim els bras dels estats de Bell 2x2
+############################################
+# definim els bras dels estats de Bell 2x2 #
+############################################
 Estats_Bell_bra = np.multiply(np.array([
      np.array([[1,0,0,1]]),
      np.array([[0,1,1,0]]),
@@ -102,6 +105,9 @@ Estats_Bell_bra = np.multiply(np.array([
     ]), 1/np.sqrt(2)).astype(np.complex128)
 
 
+#################################
+# FROM LIST TO NORMALIZED ARRAY #
+#################################
 def preparacio_estat (x):
     x = np.array([x])
     x = x.astype(np.complex128)
@@ -129,13 +135,6 @@ def preparacio_estat (x):
     return x,n
 
 
-def output_estat(x,n):
-   for i in range (2**n):
-        bit = format(i, f'0{n}b')
-        if x[i][0] != 0:
-            print(x[i][0]," |",bit, ">\n")
-
-
 
 def generar_llista_complexa(n, rang_reals, rang_imaginaris):
     llista = []
@@ -147,13 +146,14 @@ def generar_llista_complexa(n, rang_reals, rang_imaginaris):
     return llista
 
 
-
 def seleccionar_index_random(probabilitats):
     # Genera un índex usant random.choices amb weights com a paràmetre
     index_seleccionat = rm.choices(range(len(probabilitats)), weights=probabilitats, k=1)[0]
     return index_seleccionat
 
-
+############################
+# GENERATE COMPOSITE STATE #
+############################
 def preparacio_sistema (AB,C,n,m):
     #creem l'estat CAB
     CAB = np.concatenate((AB,AB), axis=0)
@@ -165,7 +165,9 @@ def preparacio_sistema (AB,C,n,m):
 
     return CAB
 
-
+################################
+# INSTRUCTIONS FOR BELL STATES #
+################################
 def codis_Bell(AB):
     #cas 1: AB = estats_bell[0]
     codi = np.array([[0,1,2,3]])
