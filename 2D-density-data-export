@@ -1,0 +1,47 @@
+from MCTM-algorithm import *
+
+# Creem els fitxers on guardarem les dades
+ruta = f'Bell{index_Bell}/density_2D/dades/{N}-{a}-{T}-{burn_in_period}$${num_estats_C}'
+
+if not os.path.exists(ruta + '/a-b'):
+  os.makedirs(ruta + '/a-b')
+if not os.path.exists(ruta + '/b-g'):
+  os.makedirs(ruta + '/b-g')
+if not os.path.exists(ruta + '/g-a'):
+  os.makedirs(ruta + '/g-a')
+
+xx = np.load(f'Bell{index_Bell}/density_2D/punts_xx/{N}-{a}-{T}-{burn_in_period}$${num_estats_C}.npy')
+yy = np.load(f'Bell{index_Bell}/density_2D/punts_yy/{N}-{a}-{T}-{burn_in_period}$${num_estats_C}.npy')
+zz = np.load(f'Bell{index_Bell}/density_2D/punts_zz/{N}-{a}-{T}-{burn_in_period}$${num_estats_C}.npy')
+
+dim = xx[0][0].flatten().shape[0]
+size = xx[0][0].shape[0]
+for i in range (1):
+    file1 = open(ruta + f'/a-b/outcome_{i}.txt', 'w')
+    file2 = open(ruta + f'/b-g/outcome_{i}.txt', 'w')
+    file3 = open(ruta + f'/g-a/outcome_{i}.txt', 'w')
+
+
+    for j in range (dim):
+       file1.write("%f " %xx[i][0].flatten()[j])
+       file1.write("%f " %yy[i][0].flatten()[j])
+       file1.write("%f\n" %zz[i][0].flatten()[j])
+
+       file2.write("%f " %xx[i][1].flatten()[j])
+       file2.write("%f " %yy[i][1].flatten()[j])
+       file2.write("%f\n" %zz[i][1].flatten()[j])
+
+       file3.write("%f " %xx[i][2].flatten()[j])
+       file3.write("%f " %yy[i][2].flatten()[j])
+       file3.write("%f\n" %zz[i][2].flatten()[j])
+
+       if (j+1)%size == 0:
+          file1.write("\n")
+          file2.write("\n")
+          file3.write("\n")
+
+    file1.close()
+    file2.close()
+    file3.close()
+
+
