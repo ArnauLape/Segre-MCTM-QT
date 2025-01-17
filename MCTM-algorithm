@@ -1,1 +1,191 @@
+from Principal-functions-MCTM import *
 
+##################################################
+# AQUI CANVIEM ELS PARAMÈTRES DE LES SIMULACIONS #
+##################################################
+# Caraterístiques problema
+AB = [1,0,0,1]
+AB,n = preparacio_estat(AB)
+llista_bandwidths = values_bandwidth[0]
+index_Bell = 0
+
+num_trials = 7
+
+# Principals paràmetres
+N =300000
+a = 10
+T = 2.75
+num_estats_C = 50
+burn_in_period = 300
+
+
+# llista aleatòria d'estats C
+estats_C = []
+for _ in range(num_estats_C):
+  C = generar_llista_complexa(2,(-100,100),(-100,100))
+  C, m = preparacio_estat(C)
+  estats_C.append([C,m])
+
+
+def calcul_MCTM (i, N, cov, T, num_trials, AB, n, estats_C, Estats_Bell_bra):
+  Estat_Bell_bra = Estats_Bell_bra[i]
+  Markov_chain, Markov_chain_f_values, acceptacions = Metropolis_Hastings_MCTM(N, cov, T, num_trials, AB, n, estats_C, Estat_Bell_bra)
+  print(i, acceptacions)
+  return Markov_chain, Markov_chain_f_values, acceptacions, i
+
+
+def generar_punt_condicionat_MCTM(x, cov, z):
+    """
+    Genera un punt de dimensió 3*k on les últimes 3 (x0) coordenades estan fixades
+    i les altres es generen condicionades a aquest valor.
+    Arguments:
+        x: Vector de dimensió 3*k (mitjana del punt).
+        cov: Matriu de covariància (3*k, 3*k).
+        z: Vector de les últimes 3 coordenades fixades (dimensió 3).
+    Returns:
+        Un vector de dimensió 3*k, amb les coordenades condicionades.
+    """
+    k = x.shape[0] // 3  # Nombre de blocs
+    d = 3 * k  # Dimensió total del vector
+
+    # Separar components del vector mitjana i la matriu de covariància
+    x_rest = x[:-3]  # Mitjana de les primeres 3(k-1) coordenades
+    x_fix = x[-3:]  # Mitjana de les últimes 3 coordenades
+
+    cov_11 = cov[:-3, :-3]  # Submatriu de covariància per a [x1, ..., x3(k-1)]
+    cov_12 = cov[:-3, -3:]  # Covariància entre [x1, ..., x3(k-1)] i [z3k-2, z3k-1, z3k]
+    cov_21 = cov[-3:, :-3]  # Covariància entre [z3k-2, z3k-1, z3k] i [x1, ..., x3(k-1)]
+    cov_22 = cov[-3:, -3:]  # Variància de [z3k-2, z3k-1, z3k]
+
+    # Mitjana condicionada
+    mu_cond = x_rest + cov_12 @ np.linalg.inv(cov_22) @ (z - x_fix)
+
+
+    # Covariància condicionada
+    sigma_cond = cov_11 - cov_12 @ np.linalg.inv(cov_22) @ cov_21
+
+    # Generar les primeres 3(k-1) coordenades
+    x_rest = np.random.multivariate_normal(mu_cond, sigma_cond, size=1)[0]%(2*np.pi)
+
+    # Combinar coordenades generades amb les fixades
+    return np.concatenate([x_rest, z])
+
+
+
+def tria_punts_MCTM (x0, cov, T, k, accepted_points, accepted_values, ritme_accept, AB, n, estats_C, Estat_Bell_bra):
+    f0 = accepted_values[len(accepted_values)-1]
+
+    x0_gran = x0
+    for _ in range(k-1):
+        x0_gran = np.concatenate([x0_gran,x0])
+
+    # Generem un punt de dimensio 3*k a partir de x0_gran
+    x1_gran = np.random.multivariate_normal(x0_gran, cov, size=1)[0]%(2*np.pi)
+    trials = np.array_split(x1_gran,k)
+
+    # Calculem el valor de la funcio g per a cada punt de la llista trials
+    f_trials = []
+    for x1 in trials:
+        f_trials.append(funcio_base_log(x1,AB,n,estats_C,Estat_Bell_bra))
+
+    g_trials = np.exp(-np.divide(f_trials,T))
+
+    # Triem un punt x1 dels trials amb una probabilitat proporcional a g_trials[i]
+    sum_g_trials = np.sum(g_trials)
+    g_trials_normalized = np.divide(g_trials, sum_g_trials)
+    index = seleccionar_index_random(g_trials_normalized)
+
+    # Ens guardem el punt x1 i el seu valor funcio_base_log
+    x1 = trials[index]
+    f1 = f_trials[index]
+
+    f_trials2 = [f0]
+
+    # Generem un punt x2_gran de dimensio 3*k a partir de x1_gran condicionant que les
+    # ultimes tres coordenades siguen x0
+    x1_gran = x1
+    for _ in range(k-1):
+        x1_gran = np.concatenate([x1_gran,x1])
+
+    x2_gran = generar_punt_condicionat_MCTM(x1_gran, cov, x0)
+    trials2 = np.array_split(x2_gran,k)
+
+    f_trials2 = []
+    for x2 in trials2:
+        f_trials2.append(funcio_base_log(x2,AB,n,estats_C,Estat_Bell_bra))
+
+    g_trials2 = np.exp(-np.divide(f_trials2,T))
+    sum_g_trials2 = np.sum(g_trials2)
+
+    # probabilitat d'acceptacio
+    accept = np.min([1, sum_g_trials/sum_g_trials2])
+
+    # generem un nombre aleatori en [0,1]
+    u = rm.uniform(0,1)
+
+    if u <= accept:
+        accepted_points.append(x1)
+        accepted_values.append(f1)
+        ritme_accept += 1
+        return x1, ritme_accept
+    else:
+        accepted_points.append(x0)
+        accepted_values.append(f0)
+
+        return x0, ritme_accept
+
+
+def Metropolis_Hastings_MCTM(experiments_punts, cov, T, k, AB, n, estats_C, Estat_Bell_bra):
+    
+    dim = 3               # Dimensions del problema
+    rang_cerca = (0, 2*np.pi)  # Interval de cerca per a cada variable
+
+    while True:
+        x0 = np.random.uniform(rang_cerca[0], rang_cerca[1], size=dim)%(2*np.pi)
+        if funcio_base_log(x0,AB,n,estats_C,Estat_Bell_bra) < float('inf'):
+            break
+
+    accepted_points = [x0]
+    accepted_values = [funcio_base_log(x0,AB,n,estats_C,Estat_Bell_bra)]
+    ritme_accept = 0
+
+    for _ in range(experiments_punts):
+        x0, ritme_accept = tria_punts_MCTM(x0,cov,T,k,accepted_points,accepted_values,ritme_accept,AB,n,estats_C,Estat_Bell_bra)
+
+
+    return np.array(accepted_points), np.array(accepted_values), ritme_accept/experiments_punts
+
+
+def matriu_covariancia_MCTM (a,k):
+    sigma = np.array([
+        [a,0,0],
+        [0,a,0],
+        [0,0,a]
+        ])
+
+    rho = -1/(k-1)
+    Psi = np.array([
+        [rho*a,0,0],
+        [0,rho*a,0],
+        [0,0,rho*a]
+        ])
+
+    # matriu covariancia k x k (matriu per blocs formada a partir de cov i Psi)
+    for i in range(k):
+        if i == 0:
+            M = sigma
+        else:
+            M = Psi
+        
+        for j in range(1,k):
+            if i==j:
+                M = np.concatenate([M,sigma],axis=1)
+            else:
+                M = np.concatenate([M,Psi],axis=1)
+
+        if i==0:   
+            sigma_gran = M
+        else:
+            sigma_gran = np.concatenate([sigma_gran,M],axis=0)
+    
+    return sigma_gran
