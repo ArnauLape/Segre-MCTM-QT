@@ -1,0 +1,65 @@
+from Principal-functions-libraries import *
+
+inici_Bell = 0
+final_Bell = 3
+
+ruta = f'Bell{inici_Bell}--Bell{final_Bell}/F(j)/'
+
+J = np.loadtxt(f'Bell{inici_Bell}--Bell{final_Bell}/J_values/angles.txt')
+F = np.loadtxt(f'Bell{inici_Bell}--Bell{final_Bell}/F_values/angles.txt')
+Fdes = np.loadtxt(f'Bell{inici_Bell}--Bell{final_Bell}/F_values/angles_error_positiu.txt')
+
+
+file1 = open(ruta + 'F(J)_values.txt',"w")
+file2 = open(ruta + 'F(J)_values_positiu.txt',"w")
+file3 = open(ruta + 'F(J)_values_negatiu.txt',"w")
+file4 = open(ruta + 'desviacio_values.txt',"w")
+file5= open(ruta + 'desviacio_values_positiu.txt',"w")
+file6= open(ruta + 'desviacio_values_negatiu.txt',"w")
+file7= open(ruta + 'F(J)+desviacio.txt',"w")
+file8= open(ruta + 'F(J)-desviacio.txt',"w")
+
+
+files = [file1,file2,file3,file4,file5,file6,file7,file8]
+
+
+# print(J)
+# print(J[f'{angles[499]}'])
+
+for i in range(1,501):
+
+    familia_indexos = np.array([i-1, 999-i, i+999, 1999-i])
+
+    J_llista = []
+    FJ_llista = []
+    desviacio_llista = []
+
+    for fill in familia_indexos:
+        J_llista.append(J[fill][1])
+        FJ_llista.append(F[fill][1])
+        desviacio_llista.append(Fdes[fill][1]-F[fill][1])
+    
+    J_mean = np.mean(J_llista)
+    for j in range(8):
+        files[j].write("%f " %J_mean)
+
+    FJ_mean = np.mean(FJ_llista)
+    FJ_std = np.std(FJ_llista, ddof=1)
+    file1.write("%f\n" %FJ_mean)
+    file2.write("%f\n" %(FJ_mean+FJ_std))
+    file3.write("%f\n" %(FJ_mean-FJ_std))
+
+
+    desviacio_mean = np.mean(desviacio_llista)
+    desviacio_std = np.std(desviacio_llista, ddof=1)
+    file4.write("%f\n" %desviacio_mean)
+    file5.write("%f\n" %(desviacio_mean+desviacio_std))
+    file6.write("%f\n" %(desviacio_mean-desviacio_std))
+
+    file7.write("%f\n" %(FJ_mean+desviacio_mean))
+    file8.write("%f\n" %(FJ_mean-desviacio_mean))
+
+for j in range(8):
+    files[j].close()
+
+
