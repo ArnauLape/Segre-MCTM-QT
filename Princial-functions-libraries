@@ -1,0 +1,182 @@
+import numpy as np
+from itertools import product
+from itertools import permutations
+import random as rm
+import sys
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from mpl_toolkits.mplot3d import Axes3D
+from pathlib import Path
+import time
+from matplotlib import colormaps
+import math
+from sklearn.neighbors import KernelDensity
+from sklearn.model_selection import GridSearchCV
+from sklearn.cluster import estimate_bandwidth
+from scipy.stats import gaussian_kde
+import scipy.integrate as spi
+from scipy.interpolate import griddata
+from scipy.integrate import dblquad
+import os
+import matplotlib.ticker as ticker
+from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
+import pickle
+from sympy import symbols, expand, simplify, conjugate, Eq, solve, factor
+
+
+
+eps = 1e-8
+
+
+#########################
+# QUANTUM TELEPORTATION #
+#########################
+def quantum_teleportation_ponderada (AB, C, n, m, instruccions):
+    #calculem les dimensions dels sistemes involuctrats
+    dim_AB = 2**n
+    dim_C = 2**m
+
+    if dim_C**2 != dim_AB:
+        print("Aquest algoritme només pot funcionar si la dimensió del sistema que es vol teleportar, m, satisfà que m^2=n, on n es la dimensió del sistema entrellaçat.")
+        exit(1)
+
+    CAB = preparacio_sistema(AB,C,n,m)
+
+    mitjana_pond = 0
+    for i in range(4):
+      #calculem l'estat de B després que A hagi realitzat una mesura de Bell sobre el sistema CA
+      tele = np.transpose(np.dot(Estats_Bell_bra[i], CAB))
+      norma_tele = np.linalg.norm(np.transpose(tele)[0])
+      outcome_probability = norma_tele**2
+
+      #mirem si algun estat teleportat és zero
+      if norma_tele != 0:
+        tele = np.divide(tele,norma_tele)
+
+        # estat de B després d'haver fet una transformació local sobre el seu
+        # qubit seguint un codi
+        tele = np.dot(instruccions[i],tele)
+
+        #calculem la fidelitat del transport
+        F = np.dot(np.transpose(np.conjugate(tele)),C)[0][0]
+        F *= F.conjugate()
+        F = F.real
+        #calculem la mitjana ponderada amb pesos les outcome probabilities
+        mitjana_pond += outcome_probability * F
+
+    if (1-eps) <  mitjana_pond < (1+eps):
+            mitjana_pond = 1
+
+    return mitjana_pond
+
+
+
+
+
+#definim les matrius de Pauli 2x2
+Matrius_pauli = np.array([
+    np.array([
+        [1+0j,0+0j],
+        [0+0j,1+0j]
+               ]),
+     np.array([
+         [0+0j,1+0j],
+         [1+0j,0+0j]
+               ]),
+     np.array([
+         [0+0j,-1j],
+         [1j,0+0j]
+               ]),
+     np.array([
+         [1+0j,0+0j],
+         [0+0j,-1+0j]
+               ])]
+    )
+
+#definim els bras dels estats de Bell 2x2
+Estats_Bell_bra = np.multiply(np.array([
+     np.array([[1,0,0,1]]),
+     np.array([[0,1,1,0]]),
+     np.array([[0,1,-1,0]]),
+     np.array([[1,0,0,-1]])
+    ]), 1/np.sqrt(2)).astype(np.complex128)
+
+
+def preparacio_estat (x):
+    x = np.array([x])
+    x = x.astype(np.complex128)
+    x = np.transpose(x)
+
+    #obtenim el nombre de qubits que formen el sistema estat_ket
+    n = np.log2(x.shape[0]) #retorna un nombre float64
+    if n-int(n) != 0 or n<=0:
+        print("L'estat quantic inserit no és vàlid")
+        exit(0)
+    else:
+        n = int(n) #si no el passem a int, no podem correr el codi
+
+    #normalitzem l'estat
+    x = np.divide(x, np.linalg.norm(np.transpose(x)[0]))
+
+    #canviem la fase global de l'estat si ens interessa
+    primer_element_no_nul = x[np.nonzero(x)[0][0]]
+    if primer_element_no_nul.imag != 0 and primer_element_no_nul.real == 0:
+        x = np.multiply(x,1j)
+        primer_element_no_nul *= 1j
+    if primer_element_no_nul < 0:
+        x = np.multiply(x,-1)
+
+    return x,n
+
+
+def output_estat(x,n):
+   for i in range (2**n):
+        bit = format(i, f'0{n}b')
+        if x[i][0] != 0:
+            print(x[i][0]," |",bit, ">\n")
+
+
+
+def generar_llista_complexa(n, rang_reals, rang_imaginaris):
+    llista = []
+    for _ in range(n):
+        part_real = rm.uniform(*rang_reals)
+        part_imaginari = rm.uniform(*rang_imaginaris)
+        nombre_complex = complex(part_real, part_imaginari)
+        llista.append(nombre_complex)
+    return llista
+
+
+
+def seleccionar_index_random(probabilitats):
+    # Genera un índex usant random.choices amb weights com a paràmetre
+    index_seleccionat = rm.choices(range(len(probabilitats)), weights=probabilitats, k=1)[0]
+    return index_seleccionat
+
+
+def preparacio_sistema (AB,C,n,m):
+    #creem l'estat CAB
+    CAB = np.concatenate((AB,AB), axis=0)
+    CAB[:4] = np.multiply(C[0][0],CAB[:4])
+    CAB[4:] = np.multiply(C[1][0],CAB[4:])
+
+    #el descomposem en la base ortonormal |00>,...,|11> corresponent al sistema CA
+    CAB = np.reshape(CAB,(2**n,2**m))
+
+    return CAB
+
+
+def codis_Bell(AB):
+    #cas 1: AB = estats_bell[0]
+    codi = np.array([[0,1,2,3]])
+    #cas 2: AB = estats_bell[3]
+    if AB[0][0]*AB[3][0].conjugate() < 0:
+        codi = np.array([[3,2,1,0]])
+    #cas 3: AB = estats_bell[1]
+    if AB[1][0]*AB[2][0].conjugate() > 0:
+        codi = np.array([[1,0,3,2]])
+    #cas 4: AB = estats_bell[2]
+    if AB[1][0]*AB[2][0].conjugate() < 0:
+        codi = np.array([[2,3,0,1]])
+
+    return codi
