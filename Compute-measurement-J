@@ -1,6 +1,50 @@
 from funcions import *
 
 
+############
+# CALCUL J #
+############
+def calcul_J (estat_ket, n, l):
+  #fem el bra del nostre estat
+  estat_bra = np.transpose(np.conjugate(estat_ket))
+
+  #creem la matriu identiat de dimensio pow(2,n-l)
+  id = np.eye(pow(2,n-l))
+
+  #
+  llistes = []
+  for i in range (l):
+      llistes.append(range(4))
+  llistes = np.array(llistes)
+
+  #fem els càlculs corresponents
+  sum = 0
+  for combinacio in product (*llistes):
+      for i in range (l):
+          if i == 0:
+              m_prod_tens = Matrius_pauli[combinacio[i]]
+          else:
+              m_prod_tens = np.kron(m_prod_tens, Matrius_pauli[combinacio[i]])
+
+      m_prod_tens = np.kron(m_prod_tens,id)
+
+      m_prod_matrius = np.dot(m_prod_tens,estat_ket)
+      m_prod_matrius = np.dot(estat_bra,m_prod_matrius)
+
+      valor = m_prod_matrius[0][0]
+      valor = valor * valor.conjugate()
+
+      sum += valor
+
+  J = 2-(1/pow(2,l-1)*sum)
+  J = J.real
+
+  if (1-eps) < J < (1+eps):
+    J = 1
+
+  return J
+
+
 ########################
 # SINGLE N-QUBIT STATE #
 ########################
