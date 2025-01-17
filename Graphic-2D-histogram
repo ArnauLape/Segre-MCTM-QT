@@ -1,0 +1,76 @@
+from MCTM-algorithm import *
+
+
+files = 4
+
+# característiques de les gràfiques
+fig, axes = plt.subplots(files, 3, sharex=True, sharey=True, figsize=(15, 5))
+fig.subplots_adjust(wspace=0.0,hspace=0.05)
+parametres = [r'$\beta$',r'$\gamma$',r'$\theta$']
+
+h_vals = np.linspace(0, 2*np.pi, 2000)
+etiquetes = ['0', r'$\frac{1}{2}\pi$',  r'$\pi$', r'$\frac{3}{2}\pi$', r'$2\pi$']
+ticks = [0, np.pi*2/4, np.pi, np.pi*6/4, np.pi*8/4]
+
+cmap_colors = ['Blues','Reds','Greens','Oranges']
+colors_legend = ['blue','red','green','orange']
+
+for i in range (3):
+    axes[files-1,i].set_ylabel(parametres[(i+1)%3], fontsize=12)
+    axes[files-1,0].set_yticks(ticks, etiquetes)
+    axes[files-1,i].set_xlabel(parametres[i], fontsize=12)
+    axes[files-1,i].set_xticks(ticks, etiquetes)
+
+
+# resultats = np.load(f'Bell{index_Bell}/cadenes/{N}-{a}-{T}$${num_estats_C}.npy')
+fig.suptitle(rf"$|\Phi\rangle=|\phi_{index_Bell}\rangle$", fontsize=16)
+
+
+# PER A ANGLES
+angle = 0.698
+
+resultats = np.load(f'Bell{index_Bell}/Angles/{N}-{a}-{T}$${num_estats_C}/cadenes/{angle:.3f}.npy')
+
+# inici_Bell = 0
+# final_Bell = 1
+# resultats = np.load(f'Bell{inici_Bell}--Bell{final_Bell}/Angles/{N}-{a}-{T}$${num_estats_C}/cadenes/{angle:.3f}.npy')
+
+# Afegir un títol general
+# fig.suptitle(rf"$|\Phi\rangle=|\phi_{index_Bell}\rangle$, $\alpha={angle}$", fontsize=16)
+# fig.suptitle(rf"$|\phi_{inici_Bell}\rangle\leftrightarrow|\phi_{final_Bell}\rangle$, $\alpha={angle}$", fontsize=16)
+
+
+resultats_parametre = []
+for i in range(files):
+  resultats_parametre.append([])
+  for j in range(3):
+    resultats_parametre[i].append(np.transpose(np.hsplit(resultats[i],3)[j])[0][burn_in_period:])
+
+
+for i in range(files):
+    for j in range(3):
+        x = resultats_parametre[i][j]
+        y = resultats_parametre[i][(j+1)%3]
+
+        bin = 200
+        axes[i,j].hist2d(x, y, bins=(bin, bin), cmap=plt.cm.jet)
+        axes[i,j].set_xlim(0*np.pi, 2*np.pi)
+        axes[i,j].set_ylim(0*np.pi, 2*np.pi)
+
+handles=[]
+for i in range(files):
+    handles.append(Line2D([0], [0], color=colors_legend[i], label=rf"$|\phi_{i}\rangle$"))
+
+handles.append(Line2D([0], [0], color='white', label=f"N = {N}"))
+handles.append(Line2D([0], [0], color='white', label=r'$\sigma^2=$'f"{a}"))
+handles.append(Line2D([0], [0], color='white', label=f"T = {T}"))
+handles.append(Line2D([0], [0], color='white', label=f"k = {num_trials}"))
+handles.append(Line2D([0], [0], color='white', label=f"Burn-in = {burn_in_period}"))
+handles.append(Line2D([0], [0], color='white', label=f"#Estats C = {num_estats_C}"))
+
+fig.legend(loc='upper right', bbox_to_anchor=(1, 0.85), handles=handles, title = "MCTM",fontsize=7)
+
+
+
+plt.show()
+
