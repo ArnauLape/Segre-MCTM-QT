@@ -72,7 +72,7 @@ file = open(ruta + '/angles.txt',"w")
 angle_inici = 0               
 angle_final = np.pi           
 n_angles = 2000         
-angles = np.linspace(inici, final, n_angles) 
+angles = np.linspace(angle_inici, angle_final, n_angles) 
 
 for angle in angles:
   estat = [np.cos(angle),0,0,np.sin(angle)]
