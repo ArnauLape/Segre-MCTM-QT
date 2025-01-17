@@ -1,0 +1,50 @@
+from Principal-functions-libraries import *
+
+
+#################################################
+# QUANTUM TELEPORTATION: weighted mean fidelity #
+#################################################
+def quantum_teleportation_ponderada (AB, C, n, m, instruccions):
+    #calculem les dimensions dels sistemes involuctrats
+    dim_AB = 2**n
+    dim_C = 2**m
+
+    if dim_C**2 != dim_AB:
+        print("Aquest algoritme només pot funcionar si la dimensió del sistema que es vol teleportar, m, satisfà que m^2=n, on n es la dimensió del sistema entrellaçat.")
+        exit(1)
+
+    CAB = preparacio_sistema(AB,C,n,m)
+
+    mitjana_pond = 0
+    for i in range(4):
+      #calculem l'estat de B després que A hagi realitzat una mesura de Bell sobre el sistema CA
+      tele = np.transpose(np.dot(Estats_Bell_bra[i], CAB))
+      norma_tele = np.linalg.norm(np.transpose(tele)[0])
+      outcome_probability = norma_tele**2
+
+      #mirem si algun estat teleportat és zero
+      if norma_tele != 0:
+        tele = np.divide(tele,norma_tele)
+
+        # estat de B després d'haver fet una transformació local sobre el seu
+        # qubit seguint un codi
+        tele = np.dot(instruccions[i],tele)
+
+        #calculem la fidelitat del transport
+        F = np.dot(np.transpose(np.conjugate(tele)),C)[0][0]
+        F *= F.conjugate()
+        F = F.real
+        #calculem la mitjana ponderada amb pesos les outcome probabilities
+        mitjana_pond += outcome_probability * F
+
+    if (1-eps) <  mitjana_pond < (1+eps):
+            mitjana_pond = 1
+
+    return mitjana_pond
+
+
+
+
+
+
+
