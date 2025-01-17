@@ -45,6 +45,81 @@ def quantum_teleportation_ponderada (AB, C, n, m, instruccions):
 
 
 
+#########################################################
+# QUANTUM TELEPORTATION: n-qubits depending on an angle #
+#########################################################
+
+inici_Bell = 0
+final_Bell = 3
+
+ruta = f'Bell{inici_Bell}--Bell{final_Bell}/F_values'
+if not os.path.exists(ruta):
+  os.makedirs(ruta)
+
+file1 = open(ruta + '/angles.txt',"w")
+file2 = open(ruta + '/angles_error_positiu.txt',"w")
+file3 = open(ruta + '/angles_error_negatiu.txt',"w")
+
+# fixem les insruccions1
+instruccions1 = Matrius_pauli[[0,1,2,3]]
+
+# fixem les insruccions2
+instruccions2 = Matrius_pauli[[3,2,1,0]]
+
+angle_inici = 0               
+angle_final = np.pi           
+n_angles = 2000        
+angles = np.linspace(angle_inici, angle_final, n_angles) 
+
+# Generem una llista d'estats C random que serà la mateixa per a cada angle
+experiments = 10000
+estats_C = []
+for _ in range(experiments):
+  C = generar_llista_complexa(2, (-100, 100), (-100, 100))
+  C,m = preparacio_estat(C)
+  estats_C.append([C,m])
+
+
+for angle in angles:
+  AB = [np.cos(angle),np.sin(angle),-np.sin(angle),np.cos(angle)]
+  AB,n = preparacio_estat(AB)
+
+  if np.pi/4 <= angle < np.pi*3/4:
+    instruccions = instruccions2
+  else:
+    instruccions = instruccions1
+
+  if angle < angle_final/2:
+    instruccions = instruccions1
+  else:
+    instruccions = instruccions2
+
+  conjunt_F = []
+  for C,m in estats_C:
+    F = quantum_teleportation_ponderada(AB,C,n,m,instruccions2)
+    conjunt_F.append(F)
+
+  mean = np.mean(conjunt_F)
+  error = np.std(conjunt_F, ddof=1)
+
+  file1.write("%f   " %angle)
+  file1.write(" %f\n" %mean)
+
+  error_positiu = mean + error/np.sqrt(experiments)
+  file2.write("%f   " %angle)
+  file2.write(" %f\n" %error_positiu)
+
+  error_negatiu = mean - error/np.sqrt(experiments)
+  file3.write("%f   " %angle)
+  file3.write(" %f\n" %error_negatiu)
+
+file1.close()
+file2.close()
+file3.close()
+
+
+
+
 
 
 
