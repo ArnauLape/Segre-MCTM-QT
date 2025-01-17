@@ -1,0 +1,78 @@
+from Principal-functions-MCTM import *
+
+def tria_punts_MTMII (x0, cov, T, k, accepted_points, accepted_values, ritme_accept, AB, n, estats_C, Estat_Bell_bra):
+    f0 = accepted_values[len(accepted_values)-1]
+
+    # Generem k punts x1 a partir de x0
+    trials = []
+    for _ in range(k):
+        trials.append(np.random.multivariate_normal(x0, cov, size=1)[0]%(2*np.pi))
+
+    # Calculem el valor de la funcio g per a cada punt generat en la llista trials
+    f_trials = []
+    for x1 in trials:
+        f_trials.append(funcio_base_log(x1,AB,n,estats_C,Estat_Bell_bra))
+
+    g_trials = np.exp(-np.divide(f_trials,T))
+
+    # Triem un punt x1 dels trials amb una probabilitat proporcional a g_trials[i]
+    sum_g_trials = np.sum(g_trials)
+    g_trials_normalized = np.divide(g_trials, sum_g_trials)
+    index = seleccionar_index_random(g_trials_normalized)
+
+    # Ens guardem el punt x1 i el seu valor funcio_base_log
+    x1 = trials[index]
+    f1 = f_trials[index]
+    
+    f_trials2 = [f0]
+    # Generem k-1 punts x2 a partir de x1
+    for _ in range (k-1):
+        x2 = np.random.multivariate_normal(x1, cov, size=1)[0]%(2*np.pi)
+        f_trials2.append(funcio_base_log(x2,AB,n,estats_C,Estat_Bell_bra))
+
+    g_trials2 = np.exp(-np.divide(f_trials2,T))
+    sum_g_trials2 = np.sum(g_trials2)
+
+    # probabilitat d'acceptacio
+    accept = np.min([1, sum_g_trials/sum_g_trials2])
+
+    # generem un nombre aleatori en [0,1]
+    u = rm.uniform(0,1)
+
+    if u <= accept:
+        accepted_points.append(x1)
+        accepted_values.append(f1)
+        ritme_accept += 1
+        return x1, ritme_accept
+    else:
+        accepted_points.append(x0)
+        accepted_values.append(f0)
+
+        return x0, ritme_accept
+
+
+def Metropolis_Hastings_MTMII (experiments_punts, cov, T, k, AB, n, estats_C, Estat_Bell_bra):
+
+    dim = 3               # Dimensions del problema
+    rang_cerca = (0, 2*np.pi)  # Interval de cerca per a cada variable
+
+
+    while True:
+        x0 = np.random.uniform(rang_cerca[0], rang_cerca[1], size=dim)%(2*np.pi)
+        if funcio_base_log(x0,AB,n,estats_C,Estat_Bell_bra) < float('inf'):
+            break
+
+    accepted_points = [x0]
+    accepted_values = [funcio_base_log(x0,AB,n,estats_C,Estat_Bell_bra)]
+    ritme_accept = 0
+
+    for _ in range(experiments_punts):
+        x0, ritme_accept = tria_punts_MTMII(x0,cov,T,k,accepted_points,accepted_values,ritme_accept,AB,n,estats_C,Estat_Bell_bra)
+
+
+    return np.array(accepted_points), np.array(accepted_values), ritme_accept/experiments_punts
+
+
+
+
+
