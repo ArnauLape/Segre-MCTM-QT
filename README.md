@@ -1,1 +1,1 @@
-# Implementation of Segre Embeddings and Multiple Correlated-Try Metropolis on Quantum Teleportation 
+# Implementation of Multiple Correlated-Try Metropolis algorithm on Quantum Teleportation 
