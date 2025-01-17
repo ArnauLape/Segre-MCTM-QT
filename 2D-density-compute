@@ -1,0 +1,108 @@
+from MCTM-algorithm import *
+
+
+##############################
+ SINGLE STATES
+##############################
+# # # Creem els fitxers on guardarem les dades
+# ruta = f'Bell{index_Bell}/density_2D/'
+# if not os.path.exists(ruta + 'punts_xx'):
+#   os.makedirs(ruta + 'punts_xx')
+# if not os.path.exists(ruta + 'punts_yy'):
+#   os.makedirs(ruta + 'punts_yy')  
+# if not os.path.exists(ruta + 'punts_zz'):
+#   os.makedirs(ruta + 'punts_zz')
+
+# resultats = np.load(f'Bell{index_Bell}/cadenes/{N}-{a}-{T}$${num_estats_C}.npy')
+
+##############################
+ STATES WITH ANGLE
+##############################
+# Creem els fitxers on guardarem les dades (angles)
+ruta = f'Bell{index_Bell}/Angles/{N}-{a}-{T}$${num_estats_C}/density_2D/'
+if not os.path.exists(ruta + 'punts_xx'):
+  os.makedirs(ruta + 'punts_xx')
+if not os.path.exists(ruta + 'punts_yy'):
+  os.makedirs(ruta + 'punts_yy')  
+if not os.path.exists(ruta + 'punts_zz'):
+  os.makedirs(ruta + 'punts_zz')
+
+angle = 0.698
+
+resultats = np.load(f'Bell{index_Bell}/Angles/{N}-{a}-{T}$${num_estats_C}/cadenes/{angle}.npy')
+
+resultats_parametre = []
+for i in range(4):
+  resultats_parametre.append([])
+  for j in range(3):
+    resultats_parametre[i].append(np.transpose(np.hsplit(resultats[i],3)[j])[0][burn_in_period:])
+
+
+punts_xx = []
+punts_yy = []
+punts_zz = []
+for i in range(4):
+  punts_xx.append([])
+  punts_yy.append([])
+  punts_zz.append([])
+    
+  for j in range(3):
+    # Configuració del KDE
+    bandwidth = 0.8  # ajusta aquest valor segons les teves dades
+    kde = KernelDensity(bandwidth=bandwidth, kernel='gaussian')
+
+    x = resultats_parametre[i][j]
+    y = resultats_parametre[i][(j+1)%3]
+
+    X_periodic = []
+    Y_periodic = []
+    for k in range(x.shape[0]):
+      for l in range(-1,2):
+        for _ in range(3):
+          X_periodic.append(x[k]+l*2*np.pi)
+        for m in range (-1,2):
+          Y_periodic.append(y[k]+m*2*np.pi)
+
+    X_periodic = np.array(X_periodic)
+    Y_periodic = np.array(Y_periodic)
+
+    kde.fit(np.vstack([X_periodic, Y_periodic]).T)
+
+    # Crea una malla regular sobre [-2pi, 4pi) x [-2pi, 4pi)
+    dim_malla_ext = 90
+
+    X_ext, Y_ext = np.meshgrid(np.linspace(-2 * np.pi, 4 * np.pi, dim_malla_ext),
+                               np.linspace(-2 * np.pi, 4 * np.pi, dim_malla_ext))
+    xy_sample = np.vstack([X_ext.ravel(), Y_ext.ravel()]).T
+
+    # Estima la densitat (log-probabilitat)
+    log_density = kde.score_samples(xy_sample)
+
+    density_ext = np.exp(log_density).reshape(X_ext.shape)
+
+    # Crea una malla regular sobre [0, 2pi) x [0, 2pi)
+    dim_malla = dim_malla_ext//3
+
+    X, Y = np.meshgrid(np.linspace(0, 2 * np.pi, dim_malla),
+                       np.linspace(0, 2 * np.pi, dim_malla))
+
+    # Calcula dx i dy (mida de cada cel·la de la malla)
+    dx = (2 * np.pi) / X.shape[0]
+    dy = (2 * np.pi) / Y.shape[1]
+
+    # Normalitza la densitat
+    density = density_ext[dim_malla:-dim_malla, dim_malla:-dim_malla]
+    density /= np.sum(density) * dx * dy
+
+    punts_xx[i].append(X)
+    punts_yy[i].append(Y)
+    punts_zz[i].append(density)
+
+
+# np.save(ruta + f'punts_xx/{N}-{a}-{T}$${num_estats_C}.npy', punts_xx)        
+# np.save(ruta + f'punts_yy/{N}-{a}-{T}$${num_estats_C}.npy', punts_yy)        
+# np.save(ruta + f'punts_zz/{N}-{a}-{T}$${num_estats_C}.npy', punts_zz) 
+
+np.save(ruta + f'punts_xx/{angle}.npy', punts_xx)        
+np.save(ruta + f'punts_yy/{angle}.npy', punts_yy)        
+np.save(ruta + f'punts_zz/{angle}.npy', punts_zz)        
